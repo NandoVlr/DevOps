@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Projeto DevOps</title>
+</head>
+<body>
+<h1>Cadastro de Usuários</h1>
+<input id="nome" placeholder="Nome" />
+<input id="email" placeholder="Email" />
+<button onclick="salvar()">Salvar</button>
+<ul id="lista"></ul>
+
+
+<script>
+const API = 'http://localhost:3000/usuarios';
+
+
+async function listar() {
+const res = await fetch(API);
+const dados = await res.json();
+const lista = document.getElementById('lista');
+lista.innerHTML = '';
+dados.forEach(u => {
+lista.innerHTML += `<li>${u.nome} - ${u.email}</li>`;
+});
+}
+
+
+async function salvar() {
+const nome = document.getElementById('nome').value;
+const email = document.getElementById('email').value;
+await fetch(API, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ nome, email })
+});
+listar();
+}
+
+
+listar();
+</script>
+</body>
+</html>

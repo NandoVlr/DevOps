@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - "3000:3000"
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: always
+    environment:
+      DB_HOST: database
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: devops_db
+    command: ["npm", "start"]
+
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "8080:80"
+    restart: always
+
+  database:
+    image: mysql:8
+    container_name: database
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: devops_db
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+ 
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:latest
+    container_name: zabbix_server
+    ports:
+      - "10051:10051"
+    environment:
+      MYSQL_DATABASE: zabbix_db
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: zabbix_password
+      MYSQL_ROOT_PASSWORD: root
+      DB_SERVER_HOST: zabbix-db
+      ZBX_STARTPOLLERS: 10
+      ZBX_STARTTRAPPERS: 5
+    volumes:
+      - ./zabbix/zabbix_server.conf:/etc/zabbix/zabbix_server.conf
+    depends_on:
+      - zabbix-db
+    restart: always
+
+  zabbix-db:
+    image: mysql:8
+    container_name: zabbix_db_container
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: zabbix_db
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: zabbix_password
+    volumes:
+      - zabbix_db_data:/var/lib/mysql
+    restart: always
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent2:latest
+    container_name: zabbix_agent
+    volumes:
+      - /proc:/proc:ro
+      - /sys:/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "10050:10050"
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_HOSTNAME: DockerHost
+    depends_on:
+      - zabbix-server
+    restart: always
+    pid: host
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-mysql:latest
+    container_name: zabbix_web
+    ports:
+      - "8081:8080" 
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      DB_SERVER_HOST: zabbix-db
+      MYSQL_DATABASE: zabbix_db
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: zabbix_password
+      MYSQL_ROOT_PASSWORD: root
+      PHP_TZ: America/Sao_Paulo 
+    depends_on:
+      - zabbix-server
+      - zabbix-db
+    restart: always
+
+volumes:
+  db_data:
+  zabbix_db_data: 
+  zabbix_server_conf: 
